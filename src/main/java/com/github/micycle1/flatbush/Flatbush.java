@@ -22,7 +22,7 @@ public class Flatbush {
 	 * Create a Flatbush index that will hold {@code numItems} rectangles with
 	 * default nodeSize=16.
 	 */
-	public Flatbush(int numItems) {
+	public Flatbush(final int numItems) {
 		this(numItems, 16);
 	}
 
@@ -30,7 +30,7 @@ public class Flatbush {
 	 * Create a Flatbush index that will hold {@code numItems} rectangles and pack
 	 * {@code nodeSize} entries per node.
 	 */
-	public Flatbush(int numItems, int nodeSize) {
+	public Flatbush(final int numItems, final int nodeSize) {
 		if (numItems <= 0) {
 			throw new IllegalArgumentException("Unexpected numItems value: " + numItems);
 		}
@@ -41,23 +41,23 @@ public class Flatbush {
 		// calculate total number of nodes and level boundaries
 		int n = numItems;
 		int numNodes = n;
-		List<Integer> lb = new ArrayList<>();
+		final List<Integer> lb = new ArrayList<>();
 		lb.add(n * 4); // leaf-level boundary in box-elements
-	    do {
-	        n = (n + this.nodeSize - 1) / this.nodeSize;
-	        numNodes += n;
-	        lb.add(numNodes * 4);         // cumulative element‐offset of next level
-	    } while (n != 1);
+		do {
+			n = (n + this.nodeSize - 1) / this.nodeSize;
+			numNodes += n;
+			lb.add(numNodes * 4); // cumulative element‐offset of next level
+		} while (n != 1);
 
-	    // commit levelBounds[]
-	    this.levelBounds = new int[lb.size()];
-	    for (int i = 0; i < lb.size(); i++) {
-	        this.levelBounds[i] = lb.get(i);
-	    }
+		// commit levelBounds[]
+		this.levelBounds = new int[lb.size()];
+		for (int i = 0; i < lb.size(); i++) {
+			this.levelBounds[i] = lb.get(i);
+		}
 
-	    // now allocate flat storage for numNodes * 4 doubles:
-	    this.boxes   = new double[numNodes * 4];
-	    this.indices = new int   [numNodes];
+		// now allocate flat storage for numNodes * 4 doubles:
+		this.boxes = new double[numNodes * 4];
+		this.indices = new int[numNodes];
 		this.pos = 0;
 		this.minX = Double.POSITIVE_INFINITY;
 		this.minY = Double.POSITIVE_INFINITY;
@@ -73,16 +73,16 @@ public class Flatbush {
 		return indices;
 	}
 
-	public int add(double maxX, double maxY) {
-		return add(0, 0, maxX, maxY);
+	public int add(final double x, final double y) {
+		return add(x, y, x, y);
 	}
 
 	/**
 	 * Add a rectangle [minX,minY,maxX,maxY] to the index. Returns the leaf-id for
 	 * this rectangle.
 	 */
-	public int add(double minX, double minY, double maxX, double maxY) {
-		int idx = pos >> 2;
+	public int add(final double minX, final double minY, final double maxX, final double maxY) {
+		final int idx = pos >> 2;
 		indices[idx] = idx;
 		boxes[pos++] = minX;
 		boxes[pos++] = minY;
@@ -129,20 +129,20 @@ public class Flatbush {
 		if (h == 0) {
 			h = 1;
 		}
-		long hilbertMax = (1 << 16) - 1;
-		long[] hilbertValues = new long[numItems];
+		final long hilbertMax = (1 << 16) - 1;
+		final long[] hilbertValues = new long[numItems];
 
 		// map leaves into [0..hilbertMax]², compute Hilbert key
 		int rp = 0;
 		for (int i = 0; i < numItems; i++) {
-			double bx0 = boxes[rp++];
-			double by0 = boxes[rp++];
-			double bx1 = boxes[rp++];
-			double by1 = boxes[rp++];
-			double cx = (bx0 + bx1) * 0.5;
-			double cy = (by0 + by1) * 0.5;
-			int ix = (int) Math.floor(hilbertMax * (cx - minX) / w);
-			int iy = (int) Math.floor(hilbertMax * (cy - minY) / h);
+			final double bx0 = boxes[rp++];
+			final double by0 = boxes[rp++];
+			final double bx1 = boxes[rp++];
+			final double by1 = boxes[rp++];
+			final double cx = (bx0 + bx1) * 0.5;
+			final double cy = (by0 + by1) * 0.5;
+			final int ix = (int) Math.floor(hilbertMax * (cx - minX) / w);
+			final int iy = (int) Math.floor(hilbertMax * (cy - minY) / h);
 			hilbertValues[i] = hilbert(ix, iy);
 		}
 
@@ -152,10 +152,10 @@ public class Flatbush {
 		// build parent nodes, bottom-up
 		int readPos = 0;
 		for (int lvl = 0; lvl < levelBounds.length - 1; lvl++) {
-			int end = levelBounds[lvl];
+			final int end = levelBounds[lvl];
 			while (readPos < end) {
 				// start a new parent under construction
-				int childStart = readPos; // remember element‐offset
+				final int childStart = readPos; // remember element‐offset
 				double nminX = boxes[readPos];
 				double nminY = boxes[readPos + 1];
 				double nmaxX = boxes[readPos + 2];
@@ -163,10 +163,10 @@ public class Flatbush {
 				readPos += 4;
 				// absorb up to nodeSize children
 				for (int j = 1; j < nodeSize && readPos < end; j++) {
-					double bx0 = boxes[readPos++];
-					double by0 = boxes[readPos++];
-					double bx1 = boxes[readPos++];
-					double by1 = boxes[readPos++];
+					final double bx0 = boxes[readPos++];
+					final double by0 = boxes[readPos++];
+					final double bx1 = boxes[readPos++];
+					final double by1 = boxes[readPos++];
 					if (bx0 < nminX) {
 						nminX = bx0;
 					}
@@ -181,7 +181,7 @@ public class Flatbush {
 					}
 				}
 				// write the new parent node
-				int parentId = pos >> 2;
+				final int parentId = pos >> 2;
 				indices[parentId] = childStart; // element‐offset of first child
 				boxes[pos++] = nminX;
 				boxes[pos++] = nminY;
@@ -195,7 +195,7 @@ public class Flatbush {
 	 * Search all leaf rectangles intersecting [minX,minY,maxX,maxY]. If
 	 * filter==null, all hits are returned. Returns a packed int[] of leaf-ids.
 	 */
-	public int[] search(double minX, double minY, double maxX, double maxY, IntPredicate filter) {
+	public int[] search(final double minX, final double minY, final double maxX, final double maxY, final IntPredicate filter) {
 		if (pos != boxes.length) {
 			throw new IllegalStateException("Data not indexed. Call finish().");
 		}
@@ -210,13 +210,13 @@ public class Flatbush {
 		int nodeIndex = boxes.length - 4;
 		while (nodeIndex >= 0) {
 			// find child range
-			int end = Math.min(nodeIndex + nodeSize * 4, upperBound(nodeIndex, levelBounds));
+			final int end = Math.min(nodeIndex + nodeSize * 4, upperBound(nodeIndex, levelBounds));
 			// scan children
 			for (int p = nodeIndex; p < end; p += 4) {
 				if ((maxX < boxes[p]) || (maxY < boxes[p + 1]) || (minX > boxes[p + 2]) || (minY > boxes[p + 3])) {
 					continue;
 				}
-				int id = indices[p >> 2];
+				final int id = indices[p >> 2];
 				if (nodeIndex >= numItems * 4) {
 					// internal node -> push its element-index
 					if (sp == stack.length) {
@@ -226,6 +226,10 @@ public class Flatbush {
 				} else {
 					// leaf
 					if (filter == null || filter.test(id)) {
+						// grow array if needed
+						if (rc == result.length) {
+							result = Arrays.copyOf(result, result.length * 2);
+						}
 						result[rc++] = id;
 					}
 				}
@@ -236,8 +240,12 @@ public class Flatbush {
 		return Arrays.copyOf(result, rc);
 	}
 
-	public int[] neighbors(double x, double y) {
+	public int[] neighbors(final double x, final double y) {
 		return neighbors(x, y, numItems, Double.POSITIVE_INFINITY, null);
+	}
+
+	public int[] neighbors(final double x, final double y, final int maxResults) {
+		return neighbors(x, y, maxResults, Double.POSITIVE_INFINITY, null);
 	}
 
 	/**
@@ -245,27 +253,27 @@ public class Flatbush {
 	 * filter==null, all leaves qualify. Returns leaf-ids in ascending distance
 	 * order.
 	 */
-	public int[] neighbors(double x, double y, int maxResults, double maxDistance, IntPredicate filter) {
+	public int[] neighbors(final double x, final double y, final int maxResults, final double maxDistance, final IntPredicate filter) {
 		if (pos != boxes.length) {
 			throw new IllegalStateException("Data not indexed. Call finish().");
 		}
-		double maxDist2 = maxDistance * maxDistance;
-		FlatQueue q = queue;
+		final double maxDist2 = maxDistance * maxDistance;
+		final FlatQueue q = queue;
 		q.clear();
 		final int[] result = new int[Math.min(maxResults, numItems)];
 		int rc = 0;
 
 		int nodeIndex = boxes.length - 4;
 		searchLoop: while (nodeIndex >= 0) {
-			int end = Math.min(nodeIndex + nodeSize * 4, upperBound(nodeIndex, levelBounds));
+			final int end = Math.min(nodeIndex + nodeSize * 4, upperBound(nodeIndex, levelBounds));
 			// push all children that intersect the maxDistance circle
 			for (int p = nodeIndex; p < end; p += 4) {
-				int id = indices[p >> 2];
-				double bx0 = boxes[p], by0 = boxes[p + 1];
-				double bx1 = boxes[p + 2], by1 = boxes[p + 3];
-				double dx = x < bx0 ? bx0 - x : (x > bx1 ? x - bx1 : 0);
-				double dy = y < by0 ? by0 - y : (y > by1 ? y - by1 : 0);
-				double dist2 = dx * dx + dy * dy;
+				final int id = indices[p >> 2];
+				final double bx0 = boxes[p], by0 = boxes[p + 1];
+				final double bx1 = boxes[p + 2], by1 = boxes[p + 3];
+				final double dx = x < bx0 ? bx0 - x : (x > bx1 ? x - bx1 : 0);
+				final double dy = y < by0 ? by0 - y : (y > by1 ? y - by1 : 0);
+				final double dist2 = dx * dx + dy * dy;
 				if (dist2 > maxDist2) {
 					continue;
 				}
@@ -281,7 +289,7 @@ public class Flatbush {
 			}
 			// drain all leaf items at the top of the queue
 			while (q.length() > 0 && ((q.peek() & 1) == 1)) {
-				double d = q.peekValue();
+				final double d = q.peekValue();
 				if (d > maxDist2) {
 					break searchLoop;
 				}
@@ -304,10 +312,10 @@ public class Flatbush {
 	// ------------------------ static helpers ------------------------
 
 	/** binary search in levelBounds for the first element > value */
-	private static int upperBound(int value, int[] arr) {
+	private static int upperBound(final int value, final int[] arr) {
 		int lo = 0, hi = arr.length - 1;
 		while (lo < hi) {
-			int mid = (lo + hi) >>> 1;
+			final int mid = (lo + hi) >>> 1;
 			if (arr[mid] > value) {
 				hi = mid;
 			} else {
@@ -318,16 +326,16 @@ public class Flatbush {
 	}
 
 	/** partial quicksort by Hilbert value in blocks of nodeSize */
-	private static void sort(long[] values, double[] boxes, int[] indices, int left, int right, int nodeSize) {
+	private static void sort(final long[] values, final double[] boxes, final int[] indices, final int left, final int right, final int nodeSize) {
 		if ((left / nodeSize) >= (right / nodeSize)) {
 			return;
 		}
-		long start = values[left];
-		long mid = values[(left + right) >>> 1];
-		long end = values[right];
+		final long start = values[left];
+		final long mid = values[(left + right) >>> 1];
+		final long end = values[right];
 		// median-of-three pivot
 		long pivot = end;
-		long x = Math.max(start, mid);
+		final long x = Math.max(start, mid);
 		if (end > x) {
 			pivot = x;
 		} else if (x == start) {
@@ -353,12 +361,12 @@ public class Flatbush {
 	}
 
 	/** swap two leaf records in values, boxes and indices */
-	private static void swap(long[] values, double[] boxes, int[] indices, int i, int j) {
-		long tmpV = values[i];
+	private static void swap(final long[] values, final double[] boxes, final int[] indices, final int i, final int j) {
+		final long tmpV = values[i];
 		values[i] = values[j];
 		values[j] = tmpV;
-		int bi = i << 2, bj = j << 2;
-		double a0 = boxes[bi], a1 = boxes[bi + 1], a2 = boxes[bi + 2], a3 = boxes[bi + 3];
+		final int bi = i << 2, bj = j << 2;
+		final double a0 = boxes[bi], a1 = boxes[bi + 1], a2 = boxes[bi + 2], a3 = boxes[bi + 3];
 		boxes[bi] = boxes[bj];
 		boxes[bi + 1] = boxes[bj + 1];
 		boxes[bi + 2] = boxes[bj + 2];
@@ -367,7 +375,7 @@ public class Flatbush {
 		boxes[bj + 1] = a1;
 		boxes[bj + 2] = a2;
 		boxes[bj + 3] = a3;
-		int t = indices[i];
+		final int t = indices[i];
 		indices[i] = indices[j];
 		indices[j] = t;
 	}
@@ -449,16 +457,16 @@ public class Flatbush {
 			return size;
 		}
 
-		void push(int id, double v) {
+		void push(final int id, final double v) {
 			if (size + 1 > ids.length) {
-				int newCap = ids.length * 2;
+				final int newCap = ids.length * 2;
 				ids = Arrays.copyOf(ids, newCap);
 				vals = Arrays.copyOf(vals, newCap);
 			}
 			int pos = size++;
 			while (pos > 0) {
-				int parent = (pos - 1) >>> 1;
-				double pv = vals[parent];
+				final int parent = (pos - 1) >>> 1;
+				final double pv = vals[parent];
 				if (v >= pv) {
 					break;
 				}
@@ -478,23 +486,24 @@ public class Flatbush {
 			return size > 0 ? vals[0] : Double.NaN;
 		}
 
-		int pop() {
+		final int pop() {
 			if (size == 0) {
 				return -1;
 			}
-			int ret = ids[0];
-			int lastIndex = --size;
+			final int ret = ids[0];
+			final int lastIndex = --size;
 			if (lastIndex > 0) {
 				// take the last element up to root
-				int nodeId = ids[lastIndex];
-				double nodeVal = vals[lastIndex];
+				final int nodeId = ids[lastIndex];
+				final double nodeVal = vals[lastIndex];
 				ids[0] = nodeId;
 				vals[0] = nodeVal;
 				// bubble down
-				int pos = 0, half = lastIndex >>> 1;
+				int pos = 0;
+				final int half = lastIndex >>> 1;
 				while (pos < half) {
-					int left = (pos << 1) + 1;
-					int right = left + 1;
+					final int left = (pos << 1) + 1;
+					final int right = left + 1;
 					int best = left;
 					double bestVal = vals[left];
 					if (right < lastIndex && vals[right] < bestVal) {
