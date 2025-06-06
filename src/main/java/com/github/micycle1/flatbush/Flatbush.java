@@ -7,6 +7,8 @@ import java.util.function.IntPredicate;
 
 public class Flatbush {
 
+	private static final int INITIAL_SEARCH_CAPACITY = 16;
+
 	private final int numItems;
 	private final int nodeSize;
 	private final int[] levelBounds; // boundaries in the flat boxes array (in elements, not nodes)
@@ -200,8 +202,8 @@ public class Flatbush {
 		// a small stack of nodes to visit
 		int[] stack = new int[16];
 		int sp = 0;
-		// results (at most numItems)
-		int[] result = new int[numItems];
+		// results
+		int[] result = new int[INITIAL_SEARCH_CAPACITY];
 		int rc = 0;
 
 		// start at root
@@ -250,7 +252,7 @@ public class Flatbush {
 		double maxDist2 = maxDistance * maxDistance;
 		FlatQueue q = queue;
 		q.clear();
-		int[] result = new int[Math.min(numItems, Math.max(maxResults, numItems))];
+		final int[] result = new int[Math.min(maxResults, numItems)];
 		int rc = 0;
 
 		int nodeIndex = boxes.length - 4;
