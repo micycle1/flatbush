@@ -1,3 +1,5 @@
+[![](https://jitpack.io/v/micycle1/flatbush.svg)](https://jitpack.io/#micycle1/flatbush)
+
 # Flatbush (Java Port)
 
 A high-performance, static R-tree spatial index for 2D rectangles, ported from the popular JavaScript [Flatbush](https://github.com/mourner/flatbush) library.  
