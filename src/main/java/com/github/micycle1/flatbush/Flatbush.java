@@ -5,6 +5,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntPredicate;
 
+/**
+ * A high-performance, static R-tree spatial index for 2D rectangles, ported
+ * from the popular JavaScript Flatbush library.
+ * <p>
+ * This Java implementation aims to preserve maximum speed and minimal memory
+ * footprint and is designed to index spatial data rapidly in scenarios
+ * requiring read-only spatial querying. Flatbush supports fast point, rectangle
+ * intersection, and nearest-neighbour queries.
+ *
+ * @author Michael Carleton
+ * @author Volodymyr Agafonkin
+ */
 public class Flatbush {
 
 	private static final int INITIAL_SEARCH_CAPACITY = 16;
@@ -65,21 +77,66 @@ public class Flatbush {
 		this.maxY = Double.NEGATIVE_INFINITY;
 	}
 
+	/**
+	 * Retrieves the array containing the bounding box coordinates of nodes in the
+	 * R-tree. Each bounding box is represented as consecutive double values: [minX,
+	 * minY, maxX, maxY].
+	 *
+	 * @return the boxes array containing bounding coordinates.
+	 */
 	public double[] getBoxes() {
 		return boxes;
 	}
 
+	/**
+	 * Retrieves the mapping array from node-id to either child node-element-index
+	 * (internal nodes) or item-id (leaf nodes).
+	 *
+	 * @return the indices mapping array.
+	 */
 	public int[] getIndices() {
 		return indices;
 	}
 
+	/**
+	 * Retrieves a copy of the item indices for all leaf nodes added to the index.
+	 *
+	 * @return an array of leaf item indices.
+	 */
+	public int[] getLeafIndices() {
+		return Arrays.copyOf(indices, numItems);
+	}
+
+	/**
+	 * Returns the number of items (leaf rectangles) indexed by this Flatbush.
+	 *
+	 * @return the number of indexed items.
+	 */
+	public int size() {
+		return numItems;
+	}
+
+	/**
+	 * Adds a single point, described by its coordinates (x, y), into the index.
+	 * This point is treated as a rectangle with zero area.
+	 *
+	 * @param x the X-coordinate of the point.
+	 * @param y the Y-coordinate of the point.
+	 * @return the leaf-id generated for the added point.
+	 */
 	public int add(final double x, final double y) {
 		return add(x, y, x, y);
 	}
 
 	/**
-	 * Add a rectangle [minX,minY,maxX,maxY] to the index. Returns the leaf-id for
-	 * this rectangle.
+	 * Adds a rectangle defined by (minX, minY, maxX, maxY) coordinates into the
+	 * spatial index.
+	 *
+	 * @param minX the minimum X-coordinate of the rectangle.
+	 * @param minY the minimum Y-coordinate of the rectangle.
+	 * @param maxX the maximum X-coordinate of the rectangle.
+	 * @param maxY the maximum Y-coordinate of the rectangle.
+	 * @return the leaf-id generated for the added rectangle.
 	 */
 	public int add(final double minX, final double minY, final double maxX, final double maxY) {
 		final int idx = pos >> 2;
@@ -104,7 +161,9 @@ public class Flatbush {
 	}
 
 	/**
-	 * Finalize and build the tree. Must be called after all add() calls.
+	 * Completes the building process of the spatial index. This method must be
+	 * called after all rectangles or points have been added, and before any
+	 * querying operations (search or neighbors) can be executed.
 	 */
 	public void finish() {
 		if ((pos >> 2) != numItems) {
@@ -129,7 +188,7 @@ public class Flatbush {
 		if (h == 0) {
 			h = 1;
 		}
-		final long hilbertMax = (1 << 16) - 1;
+		final long hilbertMax = (1 << 16) - 1; // 16-bit
 		final long[] hilbertValues = new long[numItems];
 
 		// map leaves into [0..hilbertMax]², compute Hilbert key
@@ -192,8 +251,18 @@ public class Flatbush {
 	}
 
 	/**
-	 * Search all leaf rectangles intersecting [minX,minY,maxX,maxY]. If
-	 * filter==null, all hits are returned. Returns a packed int[] of leaf-ids.
+	 * Searches the spatial index to find all leaf rectangles intersecting the
+	 * specified bounding box defined by (minX, minY, maxX, maxY).
+	 *
+	 * @param minX   the minimum X-coordinate of the search area.
+	 * @param minY   the minimum Y-coordinate of the search area.
+	 * @param maxX   the maximum X-coordinate of the search area.
+	 * @param maxY   the maximum Y-coordinate of the search area.
+	 * @param filter an optional filter predicate applied to leaf ids; may be null
+	 *               to include all intersecting rectangles.
+	 * @return an array of matching leaf-ids.
+	 * @throws IllegalStateException if the index has not been finalized by calling
+	 *                               {@code finish()}.
 	 */
 	public int[] search(final double minX, final double minY, final double maxX, final double maxY, final IntPredicate filter) {
 		if (pos != boxes.length) {
@@ -240,18 +309,55 @@ public class Flatbush {
 		return Arrays.copyOf(result, rc);
 	}
 
+	/**
+	 * Finds all indexed leaf rectangles ordered by ascending distance from the
+	 * specified point (x,y). All leaf rectangles are eligible, and the result is
+	 * bounded only by the total number of indexed items.
+	 *
+	 * @param x the X-coordinate of the search point.
+	 * @param y the Y-coordinate of the search point.
+	 * @return an array of leaf-ids sorted by ascending distance.
+	 * @throws IllegalStateException if the index has not been finalized by calling
+	 *                               {@code finish()}.
+	 */
 	public int[] neighbors(final double x, final double y) {
 		return neighbors(x, y, numItems, Double.POSITIVE_INFINITY, null);
 	}
 
+	/**
+	 * Finds nearest neighbors to the specified point (x,y), up to the provided
+	 * maximum number of results, ordered by ascending distance. All neighbors,
+	 * regardless of distance, are included as long as the result count does not
+	 * exceed {@code maxResults}.
+	 *
+	 * @param x          the X-coordinate of the search point.
+	 * @param y          the Y-coordinate of the search point.
+	 * @param maxResults the maximum number of neighbor results to return.
+	 * @return an array of leaf-ids sorted by ascending distance.
+	 * @throws IllegalStateException if the index has not been finalized by calling
+	 *                               {@code finish()}.
+	 */
 	public int[] neighbors(final double x, final double y, final int maxResults) {
 		return neighbors(x, y, maxResults, Double.POSITIVE_INFINITY, null);
 	}
 
 	/**
-	 * Find nearest neighbors to (x,y), up to maxResults and within maxDistance. If
-	 * filter==null, all leaves qualify. Returns leaf-ids in ascending distance
-	 * order.
+	 * Finds nearest neighbors to the specified point (x,y), retrieving up to
+	 * {@code maxResults} items within the given maximum distance. Optionally, an
+	 * additional filter predicate can be provided to further constrain eligible
+	 * leaf rectangles.
+	 *
+	 * @param x           the X-coordinate of the search point.
+	 * @param y           the Y-coordinate of the search point.
+	 * @param maxResults  the maximum number of neighbors to return.
+	 * @param maxDistance the maximum distance limit; neighbors beyond this distance
+	 *                    are excluded.
+	 * @param filter      an optional predicate to filter leaf-ids; may be null to
+	 *                    accept all qualifying neighbors.
+	 * @return an array of leaf-ids sorted by ascending distance, limited by
+	 *         provided constraints.
+	 * @throws IllegalStateException if the index has not been finalized by calling
+	 *                               {@code finish()}.
 	 */
 	public int[] neighbors(final double x, final double y, final int maxResults, final double maxDistance, final IntPredicate filter) {
 		if (pos != boxes.length) {
